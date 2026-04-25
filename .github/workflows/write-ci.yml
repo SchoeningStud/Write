@@ -7,8 +7,8 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  linux-build:
+    runs-on: ubuntu-22.04
     steps:
     #- run: git clone --recurse-submodules https://github.com/styluslabs/Write
     # can't switch branch of submodule from actions/checkout: https://github.com/actions/checkout/issues/1815
@@ -23,3 +23,39 @@ jobs:
       working-directory: syncscribble
     - run: ./Debug/Write --glRender=0 --test
       working-directory: syncscribble
+    - run: make DEBUG=0 USE_SYSTEM_SDL=1 real_tgz
+      working-directory: syncscribble
+    - name: Upload release tgz
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-22_04-tgz
+        path: syncscribble/Release/*.tar.gz
+
+  windows-build:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      run: git clone --recurse-submodules https://github.com/styluslabs/Write
+    - name: Download make.exe
+      run: curl -L -o make.exe https://github.com/styluslabs/maps/releases/download/alpha-1/make.exe
+    - name: MSVC command prompt
+      uses: ilammy/msvc-dev-cmd@v1
+    - name: Build SDL
+      shell: cmd
+      working-directory: Write/SDL
+      run: |
+        git switch write-win
+        ..\..\make.exe -f ..\scribbleres\SDL-Makefile.msvc
+    - name: Build Write
+      shell: cmd
+      working-directory: Write/syncscribble
+      run: ..\..\make.exe SHELL=cmd.exe DEBUG=0 zip
+    # SSH session to debug workflow
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ failure() }}
+    - name: Upload release ZIP
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-win64-zip
+        path: Write/syncscribble/Release/*.zip

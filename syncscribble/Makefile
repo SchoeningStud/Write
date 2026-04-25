@@ -84,7 +84,7 @@ DEFS = PUGIXML_NO_XPATH PUGIXML_NO_EXCEPTIONS
 DEFS += SCRIBBLE_REV_NUMBER="$(GITREV)"
 
 
-ifneq ($(windir),)
+ifeq ($(OS),Windows_NT)
 # Windows
 
 SOURCES += \
