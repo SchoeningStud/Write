@@ -10,21 +10,31 @@ jobs:
   linux-build:
     runs-on: ubuntu-22.04
     steps:
+    - name: Checkout
+      run: git clone --recurse-submodules https://github.com/styluslabs/Write
     #- run: git clone --recurse-submodules https://github.com/styluslabs/Write
     # can't switch branch of submodule from actions/checkout: https://github.com/actions/checkout/issues/1815
     #- run: git switch write-linux
     #  working-directory: Write/SDL
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
-    - run: make DEBUG=1 SANITIZE=0 USE_SYSTEM_SDL=1
+    #- uses: actions/checkout@v4
+    #  with:
+    #    submodules: recursive
+    #- name: Install dependencies
+    #  run: sudo apt-get update && sudo apt-get install -y libsdl2-dev
+    - name: Build SDL
+      working-directory: SDL
+      run: |
+        git switch write-linux
+        make -f ../scribbleres/SDL-Makefile.unix
+    - run: make DEBUG=1 SANITIZE=0 USE_SYSTEM_SDL=0
       working-directory: syncscribble
     - run: ./Debug/Write --glRender=0 --test
       working-directory: syncscribble
-    - run: make DEBUG=0 USE_SYSTEM_SDL=1 real_tgz
+    - run: make DEBUG=0 USE_SYSTEM_SDL=0 real_tgz
       working-directory: syncscribble
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ failure() }}
     - name: Upload release tgz
       uses: actions/upload-artifact@v4
       with:
@@ -45,7 +55,7 @@ jobs:
       working-directory: Write/SDL
       run: |
         git switch write-win
-        ..\..\make.exe -f ..\scribbleres\SDL-Makefile.msvc
+        ..\..\make.exe -f ..\scribbleres\SDL-Makefile.msvc SHELL=cmd.exe
     - name: Build Write
       shell: cmd
       working-directory: Write/syncscribble

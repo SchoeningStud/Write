@@ -39,16 +39,16 @@ RESOURCES = src/main/windows/version.rc
 #  LIBCMT vs. MSVCRT
 CFLAGS = /MT
 # C++
-CXX = cl /nologo
+CXX = cl.exe /nologo
 CXXFLAGS = /std:c++14 /GR-
 # C
-CC = cl /nologo
+CC = cl.exe /nologo
 CCFLAGS =
 # linkerc
-LD = lib /nologo
+LD = lib.exe /nologo
 LDFLAGS = /SUBSYSTEM:WINDOWS
 # resource compiler
-RC = rc
+RC = rc.exe
 RCFLAGS =
 
 DEBUG ?= 0
