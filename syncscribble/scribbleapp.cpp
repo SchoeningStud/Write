@@ -25,8 +25,6 @@
 #include <shellapi.h>  // for ShellExecute for openUrl
 #elif PLATFORM_OSX
 #include "macos/macoshelper.h"
-#elif PLATFORM_LINUX
-#include "linux/linuxtablet.h"
 #endif
 
 ScribbleApp* ScribbleApp::app = NULL;
@@ -704,9 +702,8 @@ bool ScribbleApp::sdlEventHandler(SDL_Event* event)
   case SDL_CLIPBOARDUPDATE:
     // SDL seems to only send this event for external changes
     clipboardExternal = true;
-    // because loading clipboard is async on X11, we can't wait until paste command as on other platforms
-    // when switching between two instances of Write, we get the WindowActivate event before the clipboard
-    //  change event (since the other instance only updates the clipboard when it gets WindowDeactivate)
+    // keep Linux eager refresh behavior: when switching between two instances of Write, we may get
+    // WindowActivate before clipboard update event
     if(isWindowActive && (PLATFORM_LINUX || (cfg->Bool("preloadClipboard") && clipboardSerial != systemClipboardSerial())))
       loadClipboard();
     return true;
@@ -1092,14 +1089,40 @@ void ScribbleApp::appSuspending()
 /// clipboard ///
 // move this stuff (and overlay stuff?) to a ClipboardManager class?
 
+namespace {
+const char* CLIPBOARD_MIME_TEXT = "text/plain;charset=utf-8";
+const char* CLIPBOARD_MIME_IMAGE = "image/png";
+
+struct ClipboardData {
+  std::string text;
+  std::vector<unsigned char> image;
+};
+
+const void* SDLCALL clipboardDataProvider(void* userdata, const char* mime_type, size_t* size)
+{
+  ClipboardData* data = static_cast<ClipboardData*>(userdata);
+  if(StringRef(mime_type) == CLIPBOARD_MIME_IMAGE && !data->image.empty()) {
+    *size = data->image.size();
+    return data->image.data();
+  }
+  if(StringRef(mime_type) == CLIPBOARD_MIME_TEXT && !data->text.empty()) {
+    *size = data->text.size();
+    return data->text.data();
+  }
+  *size = 0;
+  return NULL;
+}
+
+void SDLCALL clipboardDataCleanup(void* userdata)
+{
+  delete static_cast<ClipboardData*>(userdata);
+}
+}
+
 // sync with system clipboard - remember that on Linux, clipboard contents are lost when owning app closes
 void ScribbleApp::loadClipboard()
 {
-#if !PLATFORM_LINUX
-  // on X11 (not sure about Wayland), we only get SDL_CLIPBOARDUPDATE when we lose ownership of clipboard,
-  //  so we must try to load every time we gain focus unless we own it - so we can't reset clipboardExternal
   clipboardExternal = false;
-#endif
   clipboardSerial = systemClipboardSerial();
 
 #if PLATFORM_WIN
@@ -1114,15 +1137,32 @@ void ScribbleApp::loadClipboard()
     return;
 #endif
 
-#if PLATFORM_LINUX
-  // SDL_GetClipboardText on Linux doesn't support INCR, so fails w/ large amounts of text
-  requestClipboard(win->sdlWindow);  // async, so will set clipboard when contents are ready
-#else
-  const char* clipText = SDL_GetClipboardText();
-  if(clipText && clipText[0])
-    loadClipboardText(clipText);
-  SDL_free((void*)clipText);
-#endif
+  if(SDL_HasClipboardData(CLIPBOARD_MIME_IMAGE)) {
+    size_t len = 0;
+    const unsigned char* data = static_cast<const unsigned char*>(SDL_GetClipboardData(CLIPBOARD_MIME_IMAGE, &len));
+    if(data && len) {
+      Image clipImg = Image::decodeBuffer(data, len);
+      if(!clipImg.isNull()) {
+        setClipboardToImage(std::move(clipImg));
+        SDL_free((void*)data);
+        return;
+      }
+    }
+    SDL_free((void*)data);
+  }
+  if(SDL_HasClipboardData(CLIPBOARD_MIME_TEXT)) {
+    size_t len = 0;
+    const char* clipText = static_cast<const char*>(SDL_GetClipboardData(CLIPBOARD_MIME_TEXT, &len));
+    if(clipText && len)
+      loadClipboardText(clipText, len);
+    SDL_free((void*)clipText);
+  }
+  else {
+    const char* clipText = SDL_GetClipboardText();
+    if(clipText && clipText[0])
+      loadClipboardText(clipText);
+    SDL_free((void*)clipText);
+  }
 }
 
 void ScribbleApp::loadClipboardText(const char* clipText, size_t len)
@@ -1158,7 +1198,10 @@ bool ScribbleApp::storeClipboard()
     return false;
   std::ostringstream ss;
   clipboard->saveSVG(ss);
-  SDL_SetClipboardText(ss.str().c_str());
+  auto* clipData = new ClipboardData;
+  clipData->text = ss.str();
+  const char* mimeTypes[] = { CLIPBOARD_MIME_TEXT };
+  SDL_SetClipboardData(clipboardDataProvider, clipboardDataCleanup, clipData, mimeTypes, 1);
   newClipboard = false;
   clipboardExternal = false;
   clipboardSerial = systemClipboardSerial();
@@ -1167,6 +1210,11 @@ bool ScribbleApp::storeClipboard()
 
 void ScribbleApp::setClipboardToImage(Image img, bool lossy)
 {
+  auto* clipData = new ClipboardData;
+  clipData->image = img.encodePNG();
+  const char* mimeTypes[] = { CLIPBOARD_MIME_IMAGE };
+  SDL_SetClipboardData(clipboardDataProvider, clipboardDataCleanup, clipData, mimeTypes, 1);
+
   Dim imgw = img.getWidth()*ScribbleView::unitsPerPx;
   Dim imgh = img.getHeight()*ScribbleView::unitsPerPx;
   Dim s = std::min(Dim(1),
@@ -2085,16 +2133,6 @@ void imagePicked(const void* data, int len, int fromclip)
     ScribbleApp::insertImageSync(Image::decodeBuffer((const unsigned char*)data, len), fromclip);
 }
 #endif
-
-// used for linux clipboard
-extern "C" { void clipboardFromBuffer(const unsigned char* buff, size_t len, int is_image); }
-void clipboardFromBuffer(const unsigned char* buff, size_t len, int is_image)
-{
-  if(is_image)
-    ScribbleApp::app->insertImage(Image::decodeBuffer(buff, len), true);  // fromintent = true to set clipboard
-  else
-    ScribbleApp::app->loadClipboardText((const char*)buff, len);
-}
 
 /// PDF export ///
 

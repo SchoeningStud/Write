@@ -2,6 +2,12 @@
 #include "ugui/svggui.h"
 #include "scribbleview.h"
 
+#ifndef SDL_EVENT_FINGER_DOWN
+#define SDL_EVENT_FINGER_DOWN SDL_FINGERDOWN
+#define SDL_EVENT_FINGER_MOTION SDL_FINGERMOTION
+#define SDL_EVENT_FINGER_UP SDL_FINGERUP
+#endif
+
 
 // instance methods
 
@@ -26,28 +32,40 @@ void ScribbleInput::loadConfig()
 
 static inputevent_t typeFromSDLFinger(int sdltype)
 {
-  if(sdltype == SDL_FINGERMOTION) return INPUTEVENT_MOVE;
-  else if(sdltype == SDL_FINGERDOWN) return INPUTEVENT_PRESS;
-  else if(sdltype == SDL_FINGERUP) return INPUTEVENT_RELEASE;
+  if(sdltype == SDL_EVENT_FINGER_MOTION) return INPUTEVENT_MOVE;
+  else if(sdltype == SDL_EVENT_FINGER_DOWN) return INPUTEVENT_PRESS;
+  else if(sdltype == SDL_EVENT_FINGER_UP) return INPUTEVENT_RELEASE;
   else if(sdltype == SVGGUI_FINGERCANCEL) return INPUTEVENT_CANCEL;
   return INPUTEVENT_NONE;
 }
 
+#ifdef SDL_EVENT_PEN_DOWN
+static inputevent_t typeFromSDLPen(int sdltype)
+{
+  if(sdltype == SDL_EVENT_PEN_MOTION || sdltype == SDL_EVENT_PEN_BUTTON_DOWN || sdltype == SDL_EVENT_PEN_BUTTON_UP)
+    return INPUTEVENT_MOVE;
+  else if(sdltype == SDL_EVENT_PEN_DOWN)
+    return INPUTEVENT_PRESS;
+  else if(sdltype == SDL_EVENT_PEN_UP)
+    return INPUTEVENT_RELEASE;
+  return INPUTEVENT_NONE;
+}
+#endif
+
 bool ScribbleInput::sdlEvent(SvgGui* gui, SDL_Event* event)
 {
   switch(event->type) {
-  case SDL_FINGERDOWN:
-  case SDL_FINGERMOTION:
-  case SDL_FINGERUP:
+  case SDL_EVENT_FINGER_DOWN:
+  case SDL_EVENT_FINGER_MOTION:
+  case SDL_EVENT_FINGER_UP:
   {
     inputsource_t inputsrc = INPUTSOURCE_TOUCH;
     int modemod = MODEMOD_NONE;
-    if(event->tfinger.touchId == PenPointerPen || event->tfinger.touchId == PenPointerEraser) {
-      // ignore pen hover motion?
-      //if(event->type == SDL_FINGERMOTION &&
-      //    !(enableHoverEvents || (scribbling != NOT_SCRIBBLING && currInputSource == INPUTSOURCE_PEN)))
-      //  return true;
-
+    bool isLegacyPenTouch = false;
+#if !PLATFORM_LINUX
+    isLegacyPenTouch = event->tfinger.touchId == PenPointerPen || event->tfinger.touchId == PenPointerEraser;
+#endif
+    if(isLegacyPenTouch) {
       inputsrc = INPUTSOURCE_PEN;
       modemod = (event->tfinger.fingerId & ~SDL_BUTTON_LMASK) ? MODEMOD_PENBTN : MODEMOD_NONE;
       if(event->tfinger.touchId == PenPointerEraser)
@@ -57,7 +75,7 @@ bool ScribbleInput::sdlEvent(SvgGui* gui, SDL_Event* event)
       inputsrc = INPUTSOURCE_MOUSE;
       modemod = (event->tfinger.fingerId & SDL_BUTTON_RMASK) ? MODEMOD_PENBTN : 0;
     }
-    if(event->type != SDL_FINGERMOTION || enableHoverEvents
+    if(event->type != SDL_EVENT_FINGER_MOTION || enableHoverEvents
         || (scribbling != NOT_SCRIBBLING && currInputSource == inputsrc)) {
       // add keyboard modifiers to modemod ... moved out of doInputEvent() to prevent affecting tests!
       // TODO: move this to ScribbleMode
@@ -85,6 +103,49 @@ bool ScribbleInput::sdlEvent(SvgGui* gui, SDL_Event* event)
     }
     return true;
   }
+#ifdef SDL_EVENT_PEN_DOWN
+  case SDL_EVENT_PEN_DOWN:
+  case SDL_EVENT_PEN_MOTION:
+  case SDL_EVENT_PEN_UP:
+  case SDL_EVENT_PEN_BUTTON_DOWN:
+  case SDL_EVENT_PEN_BUTTON_UP:
+  {
+    if(event->type == SDL_EVENT_PEN_BUTTON_DOWN)
+      penButtonMod = MODEMOD_PENBTN;
+    else if(event->type == SDL_EVENT_PEN_BUTTON_UP)
+      penButtonMod = MODEMOD_NONE;
+
+    if(event->type == SDL_EVENT_PEN_BUTTON_DOWN || event->type == SDL_EVENT_PEN_BUTTON_UP)
+      return true;
+
+    int modemod = penButtonMod;
+    if(event->pmotion.pen_state & SDL_PEN_ERASER_MASK)
+      modemod = MODEMOD_ERASE;
+    if(event->type != SDL_EVENT_PEN_MOTION || enableHoverEvents
+        || (scribbling != NOT_SCRIBBLING && currInputSource == INPUTSOURCE_PEN)) {
+      SDL_Keymod kbmod = SDL_GetModState();
+      if(pressedKey == SDLK_SPACE || ((kbmod & KMOD_CTRL) && (kbmod & KMOD_SHIFT)))
+        modemod |= MODE_PAN << 24;
+      else if(kbmod & KMOD_SHIFT)
+        modemod |= MODE_ERASE << 24;
+      else if(kbmod & KMOD_CTRL)
+        modemod |= MODE_SELECT << 24;
+      else if(kbmod & KMOD_ALT)
+        modemod |= MODE_INSSPACE << 24;
+      else if(pressedKey == SDLK_VOLUMEUP || pressedKey == SDLK_VOLUMEDOWN)
+        modemod |= MODEMOD_PENBTN;
+
+      Point p = Point(event->pmotion.x, event->pmotion.y) - parent->screenOrigin;
+      Dim pressure = event->pmotion.axes[SDL_PEN_AXIS_PRESSURE];
+      Dim tiltX = event->pmotion.axes[SDL_PEN_AXIS_XTILT];
+      Dim tiltY = event->pmotion.axes[SDL_PEN_AXIS_YTILT];
+      InputEvent ievent(INPUTSOURCE_PEN, modemod, event->pmotion.timestamp, 0);
+      ievent.points.push_back(InputPoint(typeFromSDLPen(event->type), p.x, p.y, pressure, tiltX, tiltY));
+      doInputEvent(ievent);
+    }
+    return true;
+  }
+#endif
   default:
     if(event->type == SvgGui::MULTITOUCH) {
       SDL_Event* fevent = static_cast<SDL_Event*>(event->user.data1);
