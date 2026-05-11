@@ -17,7 +17,13 @@ stdenv.mkDerivation {
   makeFlags = [
     "DEBUG=0"
     "USE_SYSTEM_SDL=1"
+    "PKGS=sdl3"
   ];
+
+  postPatch = ''
+    substituteInPlace ugui/svggui_platform.h \
+      --replace '#include "SDL_config.h"' '#include "SDL3/SDL_config.h"'
+  '';
 
   preBuild = ''
     makeFlagsArray+=(
