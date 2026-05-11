@@ -10,8 +10,6 @@
 #if PLATFORM_WIN
 #include "windows/winhelper.h"
 #include "SDL_syswm.h"
-#elif PLATFORM_LINUX
-#include "linux/linuxtablet.h"
 #elif PLATFORM_OSX
 #include "macos/macoshelper.h"
 #elif PLATFORM_EMSCRIPTEN
@@ -146,13 +144,7 @@ static void poolWait()
 
 static int sdlEventFilter(void* app, SDL_Event* event)
 {
-#if PLATFORM_LINUX
-  if(event->type == SDL_SYSWMEVENT) {
-    linuxProcessXEvent(event);
-    return 0;  // no further processing
-  }
-  return 1;
-#elif PLATFORM_MOBILE || PLATFORM_WIN  // we translate WM_QUERYENDSESSION to SDL_APP_WILLENTERBACKGROUND
+#if PLATFORM_MOBILE || PLATFORM_WIN  // we translate WM_QUERYENDSESSION to SDL_APP_WILLENTERBACKGROUND
   return static_cast<ScribbleApp*>(app)->sdlEventFilter(event);
 #else
   return 1;
@@ -319,7 +311,7 @@ int SDL_main(int argc, char* argv[])
   if(ScribbleApp::cfg->Int("glRender")) {
     // create window so we can create GL context
     sdlWindow = SDL_CreateWindow("Write", winGeom[0], winGeom[1], winGeom[2], winGeom[3],
-        winMaxFlag|SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI);
+        winMaxFlag|SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL|SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if(!sdlWindow)
       PLATFORM_LOG("SDL_CreateWindow (OpenGL) failed: %s\n", SDL_GetError());
     else {
@@ -378,7 +370,7 @@ int SDL_main(int argc, char* argv[])
     SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 0);  // otherwise Android will convert SW renderer output!
 #endif
     sdlWindow = SDL_CreateWindow("Write", winGeom[0], winGeom[1], winGeom[2], winGeom[3],
-        winMaxFlag|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI|(USE_GL_BLITTER ? SDL_WINDOW_OPENGL : 0));
+        winMaxFlag|SDL_WINDOW_RESIZABLE|SDL_WINDOW_HIGH_PIXEL_DENSITY|(USE_GL_BLITTER ? SDL_WINDOW_OPENGL : 0));
 #if USE_GL_BLITTER
     // note that OpenGL loader is not needed for Mac
     sdlContext = SDL_GL_CreateContext(sdlWindow);
@@ -411,9 +403,6 @@ int SDL_main(int argc, char* argv[])
   initTouchInput(sdlWindow, ScribbleApp::cfg->Bool("useWintab"));
 #elif PLATFORM_OSX
   macosDisableMouseCoalescing();  // get all tablet input points
-#elif PLATFORM_LINUX
-  linuxInitTablet(sdlWindow);
-  SDL_EventState(SDL_SYSWMEVENT, SDL_ENABLE);  // linuxtablet.c handles touch events even if no pen
 #elif PLATFORM_EMSCRIPTEN
   wasmSetupInput();
 #endif
