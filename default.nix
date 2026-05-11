@@ -20,6 +20,11 @@ stdenv.mkDerivation {
     "PKGS=sdl3"
   ];
 
+  NIX_CFLAGS_COMPILE = [
+    "-I${SDL3.dev}/include"
+    "-I${SDL3.dev}/include/SDL3"
+  ];
+
   postPatch = ''
     substituteInPlace ugui/svggui_platform.h \
       --replace '#include "SDL_config.h"' '#include "SDL3/SDL_config.h"'
