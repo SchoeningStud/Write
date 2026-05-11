@@ -1,7 +1,7 @@
 { lib
 , stdenv
 , pkg-config
-, SDL3
+, sdl3
 , libGL
 , roboto
 , imagemagick
@@ -21,13 +21,13 @@ stdenv.mkDerivation {
   ];
 
   NIX_CFLAGS_COMPILE = [
-    "-I${SDL3.dev}/include"
-    "-I${SDL3.dev}/include/SDL3"
+    "-I${sdl3.dev}/include"
+    "-I${sdl3.dev}/include/sdl3"
   ];
 
   postPatch = ''
     substituteInPlace ugui/svggui_platform.h \
-      --replace '#include "SDL_config.h"' '#include "SDL3/SDL_config.h"'
+      --replace '#include "SDL_config.h"' '#include "sdl3/SDL_config.h"'
   '';
 
   preBuild = ''
@@ -50,7 +50,7 @@ stdenv.mkDerivation {
   ];
 
   buildInputs = [
-    SDL3
+    sdl3
     libGL
   ];
 
