@@ -61,16 +61,17 @@ bool ScribbleInput::sdlEvent(SvgGui* gui, SDL_Event* event)
   {
     inputsource_t inputsrc = INPUTSOURCE_TOUCH;
     int modemod = MODEMOD_NONE;
+    bool isLegacyPenTouch = false;
 #if !PLATFORM_LINUX
-    if(event->tfinger.touchId == PenPointerPen || event->tfinger.touchId == PenPointerEraser) {
+    isLegacyPenTouch = event->tfinger.touchId == PenPointerPen || event->tfinger.touchId == PenPointerEraser;
+#endif
+    if(isLegacyPenTouch) {
       inputsrc = INPUTSOURCE_PEN;
       modemod = (event->tfinger.fingerId & ~SDL_BUTTON_LMASK) ? MODEMOD_PENBTN : MODEMOD_NONE;
       if(event->tfinger.touchId == PenPointerEraser)
         modemod = MODEMOD_ERASE;
     }
-    else
-#endif
-    if(event->tfinger.touchId == SDL_TOUCH_MOUSEID) {
+    else if(event->tfinger.touchId == SDL_TOUCH_MOUSEID) {
       inputsrc = INPUTSOURCE_MOUSE;
       modemod = (event->tfinger.fingerId & SDL_BUTTON_RMASK) ? MODEMOD_PENBTN : 0;
     }
@@ -109,7 +110,6 @@ bool ScribbleInput::sdlEvent(SvgGui* gui, SDL_Event* event)
   case SDL_EVENT_PEN_BUTTON_DOWN:
   case SDL_EVENT_PEN_BUTTON_UP:
   {
-    static int penButtonMod = 0;
     if(event->type == SDL_EVENT_PEN_BUTTON_DOWN)
       penButtonMod = MODEMOD_PENBTN;
     else if(event->type == SDL_EVENT_PEN_BUTTON_UP)

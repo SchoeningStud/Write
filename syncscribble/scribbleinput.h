@@ -50,6 +50,7 @@ public:
   inputsource_t currInputSource = INPUTSOURCE_NONE;
   bool panning = false;
   int currModeMod = 0;
+  int penButtonMod = MODEMOD_NONE;
   int expectedPoints = 0;
   Timestamp lastEventTime = 0;
   bool enableHoverEvents = false;

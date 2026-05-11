@@ -1090,8 +1090,8 @@ void ScribbleApp::appSuspending()
 // move this stuff (and overlay stuff?) to a ClipboardManager class?
 
 namespace {
-const char* ClipboardMimeText = "text/plain;charset=utf-8";
-const char* ClipboardMimeImage = "image/png";
+const char* CLIPBOARD_MIME_TEXT = "text/plain;charset=utf-8";
+const char* CLIPBOARD_MIME_IMAGE = "image/png";
 
 struct ClipboardData {
   std::string text;
@@ -1101,11 +1101,11 @@ struct ClipboardData {
 const void* SDLCALL clipboardDataProvider(void* userdata, const char* mime_type, size_t* size)
 {
   ClipboardData* data = static_cast<ClipboardData*>(userdata);
-  if(StringRef(mime_type) == ClipboardMimeImage && !data->image.empty()) {
+  if(StringRef(mime_type) == CLIPBOARD_MIME_IMAGE && !data->image.empty()) {
     *size = data->image.size();
     return data->image.data();
   }
-  if(StringRef(mime_type) == ClipboardMimeText && !data->text.empty()) {
+  if(StringRef(mime_type) == CLIPBOARD_MIME_TEXT && !data->text.empty()) {
     *size = data->text.size();
     return data->text.data();
   }
@@ -1137,9 +1137,9 @@ void ScribbleApp::loadClipboard()
     return;
 #endif
 
-  if(SDL_HasClipboardData(ClipboardMimeImage)) {
+  if(SDL_HasClipboardData(CLIPBOARD_MIME_IMAGE)) {
     size_t len = 0;
-    const unsigned char* data = static_cast<const unsigned char*>(SDL_GetClipboardData(ClipboardMimeImage, &len));
+    const unsigned char* data = static_cast<const unsigned char*>(SDL_GetClipboardData(CLIPBOARD_MIME_IMAGE, &len));
     if(data && len) {
       Image clipImg = Image::decodeBuffer(data, len);
       if(!clipImg.isNull()) {
@@ -1150,9 +1150,9 @@ void ScribbleApp::loadClipboard()
     }
     SDL_free((void*)data);
   }
-  if(SDL_HasClipboardData(ClipboardMimeText)) {
+  if(SDL_HasClipboardData(CLIPBOARD_MIME_TEXT)) {
     size_t len = 0;
-    const char* clipText = static_cast<const char*>(SDL_GetClipboardData(ClipboardMimeText, &len));
+    const char* clipText = static_cast<const char*>(SDL_GetClipboardData(CLIPBOARD_MIME_TEXT, &len));
     if(clipText && len)
       loadClipboardText(clipText, len);
     SDL_free((void*)clipText);
@@ -1200,7 +1200,7 @@ bool ScribbleApp::storeClipboard()
   clipboard->saveSVG(ss);
   auto* clipData = new ClipboardData;
   clipData->text = ss.str();
-  const char* mimeTypes[] = { ClipboardMimeText };
+  const char* mimeTypes[] = { CLIPBOARD_MIME_TEXT };
   SDL_SetClipboardData(clipboardDataProvider, clipboardDataCleanup, clipData, mimeTypes, 1);
   newClipboard = false;
   clipboardExternal = false;
@@ -1212,7 +1212,7 @@ void ScribbleApp::setClipboardToImage(Image img, bool lossy)
 {
   auto* clipData = new ClipboardData;
   clipData->image = img.encodePNG();
-  const char* mimeTypes[] = { ClipboardMimeImage };
+  const char* mimeTypes[] = { CLIPBOARD_MIME_IMAGE };
   SDL_SetClipboardData(clipboardDataProvider, clipboardDataCleanup, clipData, mimeTypes, 1);
 
   Dim imgw = img.getWidth()*ScribbleView::unitsPerPx;
