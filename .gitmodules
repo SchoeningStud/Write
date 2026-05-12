@@ -29,4 +29,3 @@
 [submodule "ugui"]
 	path = ugui
 	url = https://github.com/SchoeningStud/ugui.git
-	ignore = untracked
