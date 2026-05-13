@@ -573,7 +573,7 @@ int ScribbleApp::sdlEventFilter(SDL_Event* event)
 {
   switch (event->type) {
   case SDL_EVENT_TERMINATING:
-    // note that we expect SDL_APP_WILLENTERBACKGROUND will always be sent before SDL_APP_TERMINATING
+    // note that we expect SDL_EVENT_WILL_ENTER_BACKGROUND before SDL_EVENT_TERMINATING
     return PLATFORM_ANDROID ? 1 : 0;  // handle on our thread on Android (call finish())
   case SDL_EVENT_LOW_MEMORY:
   case SDL_EVENT_WILL_ENTER_BACKGROUND:
@@ -642,9 +642,10 @@ bool ScribbleApp::sdlEventHandler(SDL_Event* event)
     return true;
   case SDL_EVENT_WINDOW_FOCUS_GAINED:
 #if PLATFORM_ANDROID
+  // On Android, SDL_EVENT_WINDOW_SHOWN is the startup-visible event corresponding to the old ENTER behavior.
   case SDL_EVENT_WINDOW_SHOWN:
 #endif
-    // only window event sent at start on Android is ENTER
+    // only window event sent at start on Android is SHOWN
     if(delayedShowDocList) {
       delayedShowDocList = false;
       // allow initial doc list to be canceled on desktop

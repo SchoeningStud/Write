@@ -144,7 +144,7 @@ static void poolWait()
 
 static bool sdlEventFilter(void* app, SDL_Event* event)
 {
-#if PLATFORM_MOBILE || PLATFORM_WIN  // we translate WM_QUERYENDSESSION to SDL_APP_WILLENTERBACKGROUND
+#if PLATFORM_MOBILE || PLATFORM_WIN  // we translate WM_QUERYENDSESSION to SDL_EVENT_WILL_ENTER_BACKGROUND
   return static_cast<ScribbleApp*>(app)->sdlEventFilter(event);
 #else
   return true;
