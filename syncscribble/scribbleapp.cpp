@@ -641,7 +641,9 @@ bool ScribbleApp::sdlEventHandler(SDL_Event* event)
     maybeQuit();
     return true;
   case SDL_EVENT_WINDOW_FOCUS_GAINED:
-  case SDL_EVENT_WINDOW_MOUSE_ENTER:
+#if PLATFORM_ANDROID
+  case SDL_EVENT_WINDOW_SHOWN:
+#endif
     // only window event sent at start on Android is ENTER
     if(delayedShowDocList) {
       delayedShowDocList = false;
