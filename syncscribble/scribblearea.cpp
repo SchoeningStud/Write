@@ -22,7 +22,7 @@ const Color ScribbleArea::BACKGROUND_COLOR = 0xFF444444;
 Image* ScribbleArea::watermark = NULL;
 #if !PLATFORM_MOBILE
 bool ScribbleArea::staticInited = false;
-struct SDL_Cursor_Deleter { void operator()(void* x) { if(x) SDL_FreeCursor(static_cast<SDL_Cursor*>(x)); } };
+struct SDL_Cursor_Deleter { void operator()(void* x) { if(x) SDL_DestroyCursor(static_cast<SDL_Cursor*>(x)); } };
 std::unique_ptr<SDL_Cursor, SDL_Cursor_Deleter> ScribbleArea::penCursor;
 std::unique_ptr<SDL_Cursor, SDL_Cursor_Deleter> ScribbleArea::panCursor;
 std::unique_ptr<SDL_Cursor, SDL_Cursor_Deleter> ScribbleArea::eraseCursor;

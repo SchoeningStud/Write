@@ -519,13 +519,13 @@ ScribbleWidget* MainWindow::createScribbleAreaWidget(Widget* container, Scribble
   Dim initZoom = 0;
   //Widget* zoomLabel = areaWidget->zoomLabel;  -- press-drag was previous on label instead of button
   zoomBtn->addHandler([initX, initZoom, area, zoomBtn](SvgGui* gui, SDL_Event* event) mutable {
-    if(event->type == SDL_FINGERDOWN && event->tfinger.fingerId == SDL_BUTTON_LMASK) {
+    if(event->type == SDL_EVENT_FINGER_DOWN && event->tfinger.fingerID == SDL_BUTTON_LMASK) {
       initX = event->tfinger.x;   //gui->currInputPoint.x;
       initZoom = area->getZoom();
     }
-    else if(event->type == SDL_FINGERMOTION && gui->pressedWidget == zoomBtn)
+    else if(event->type == SDL_EVENT_FINGER_MOTION && gui->pressedWidget == zoomBtn)
       area->zoomCenter(initZoom*pow(1.25, 0.05f*(event->tfinger.x - initX)), false);  //event->motion.x
-    else if(event->type == SDL_FINGERUP || (event->type == SvgGui::OUTSIDE_PRESSED)) {
+    else if(event->type == SDL_EVENT_FINGER_UP || (event->type == SvgGui::OUTSIDE_PRESSED)) {
       area->zoomCenter(area->getZoom(), true);
     }
     return false;  // continue to button handler
@@ -542,7 +542,7 @@ ScribbleWidget* MainWindow::createScribbleAreaWidget(Widget* container, Scribble
   Button* timeRangeBtn = createToolbutton(SvgGui::useFile(":/icons/ic_menu_clock.svg"));
   timeRangeBtn->onClicked = [this](){
     ScribbleApp::cfg->set("displayTimeRange",  // should do right click/long press, but I'm lazy
-        (SDL_GetModState() & KMOD_SHIFT) ? 2 : !ScribbleApp::cfg->Int("displayTimeRange"));
+        (SDL_GetModState() & SDL_KMOD_SHIFT) ? 2 : !ScribbleApp::cfg->Int("displayTimeRange"));
     refreshUI(app->activeDoc(), UIState::Command);
   };
   setupTooltip(timeRangeBtn, _("Time Range"), Tooltips::LEFT | Tooltips::BOTTOM | Tooltips::ABOVE);
@@ -579,7 +579,7 @@ ScribbleWidget* MainWindow::createScribbleAreaWidget(Widget* container, Scribble
       app->setActiveArea(area);
     // For pinch zoom, is CTRL press+release sent for every step?  Investigate before enabling this
     // Also, for this to work, have area take focus when ctrl + scroll zoom begins
-    //if(event->key.keysym.sym == SDLK_RCTRL || event->key.keysym.sym == SDLK_LCTRL)
+    //if(event->key.key == SDLK_RCTRL || event->key.key == SDLK_LCTRL)
     //  area->zoomCenter(area->getZoom(), true);
     return false;  // this is kind of a hack, so pretend we don't exist
   });
@@ -710,9 +710,9 @@ void MainWindow::setupUI(ScribbleApp* a)
       return false;
     }
     // don't let repeat key events close popup (happens with Ctrl key held down for sel mode on Windows)
-    if(event->type == SDL_KEYDOWN && !event->key.repeat) {
+    if(event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat) {
       gui->closeMenus();
-      if(event->key.keysym.sym == SDLK_ESCAPE)  // only swallow Esc key
+      if(event->key.key == SDLK_ESCAPE)  // only swallow Esc key
         return true;
     }
     return false;
@@ -1447,7 +1447,7 @@ void MainWindow::setupHelpTips()
       Widget* btn = action->buttons[0];
       if(btn) {
         btn->addHandler([=](SvgGui* gui, SDL_Event* event) {
-          if(event->type == SDL_FINGERUP) {
+          if(event->type == SDL_EVENT_FINGER_UP) {
             Rect b = btn->node->bounds();
             oneTimeTip("autoclose", Point(b.left, b.bottom + 10),
                 _("Press button and drag down menu to change tool mode.\nTap button twice to lock tool."));

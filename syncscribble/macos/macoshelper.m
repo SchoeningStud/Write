@@ -71,23 +71,23 @@ static void handleMouseEvent(NSEvent* event, int subtype, int eventtype)
   sdlevent.tfinger.y = pos.y;
   sdlevent.tfinger.timestamp = SDL_GetTicks();  //fmod([event timestamp]/1000, INT_MAX)
   if ([event type] == NSEventTypeTabletPoint || subtype == NSEventSubtypeTabletPoint) {
-    sdlevent.tfinger.touchId = penPointerType;
+    sdlevent.tfinger.touchID = penPointerType;
     sdlevent.tfinger.pressure = [event pressure];
     NSEventButtonMask buttons = [event buttonMask];
     unsigned int sdlButtons = (buttons & NSEventButtonMaskPenTip) ? SDL_BUTTON_LMASK : 0;
     if(buttons & NSEventButtonMaskPenLowerSide) sdlButtons |= SDL_BUTTON_RMASK;  //SDL_BUTTON_MMASK;
     if(buttons & NSEventButtonMaskPenUpperSide) sdlButtons |= SDL_BUTTON_RMASK;
-    sdlevent.tfinger.fingerId = sdlevent.type == SDL_FINGERMOTION ? sdlButtons : (sdlButtons ^ prevTabletButtons);
+    sdlevent.tfinger.fingerID = sdlevent.type == SDL_EVENT_FINGER_MOTION ? sdlButtons : (sdlButtons ^ prevTabletButtons);
     prevTabletButtons = sdlButtons;
   }
   else {
-    sdlevent.tfinger.touchId = SDL_TOUCH_MOUSEID;
+    sdlevent.tfinger.touchID = SDL_TOUCH_MOUSEID;
     sdlevent.tfinger.pressure = 1;
     NSEventButtonMask buttons = [NSEvent pressedMouseButtons];
     unsigned int sdlButtons = (buttons & 0x01) ? SDL_BUTTON_LMASK : 0;
     if(buttons & 0x02) sdlButtons |= SDL_BUTTON_RMASK;
     if(buttons & ~0x03) sdlButtons |= SDL_BUTTON_MMASK;
-    sdlevent.tfinger.fingerId = sdlevent.type == SDL_FINGERMOTION ? sdlButtons : (sdlButtons ^ prevMouseButtons);
+    sdlevent.tfinger.fingerID = sdlevent.type == SDL_EVENT_FINGER_MOTION ? sdlButtons : (sdlButtons ^ prevMouseButtons);
     prevMouseButtons = sdlButtons;
   }
   // PeepEvents bypasses gesture recognizer and event filters
@@ -96,17 +96,17 @@ static void handleMouseEvent(NSEvent* event, int subtype, int eventtype)
 
 - (void)mouseDown:(NSEvent *)event
 {
-  handleMouseEvent(event, [event subtype], SDL_FINGERDOWN);
+  handleMouseEvent(event, [event subtype], SDL_EVENT_FINGER_DOWN);
 }
 
 - (void)mouseMoved:(NSEvent *)event
 {
-  handleMouseEvent(event, [event subtype], SDL_FINGERMOTION);
+  handleMouseEvent(event, [event subtype], SDL_EVENT_FINGER_MOTION);
 }
 
 - (void)mouseUp:(NSEvent *)event
 {
-  handleMouseEvent(event, [event subtype], SDL_FINGERUP);
+  handleMouseEvent(event, [event subtype], SDL_EVENT_FINGER_UP);
 }
 
 // this should work - tried rebuilding SDL with keyDown removed from SDL_cocoawindow.m and keyDown here was
@@ -117,12 +117,12 @@ static void handleMouseEvent(NSEvent* event, int subtype, int eventtype)
 // another potential ref: github.com/ixchow/kit/blob/master/kit-SDL2-osx.mm
 - (void)tabletPoint:(NSEvent *)event
 {
-  handleMouseEvent(event, -1, SDL_FINGERMOTION);
+  handleMouseEvent(event, -1, SDL_EVENT_FINGER_MOTION);
 }
 
 - (void)tabletProximity:(NSEvent *)event
 {
-  handleMouseEvent(event, -1, SDL_FINGERMOTION);
+  handleMouseEvent(event, -1, SDL_EVENT_FINGER_MOTION);
 }
 
 // we might need to intercept all mouse events

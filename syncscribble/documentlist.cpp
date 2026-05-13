@@ -258,15 +258,15 @@ void DocumentList::createUI()
       setWinBounds(PLATFORM_MOBILE ? newsize : newsize.pad(-40));
       return true;
     }
-    else if(event->type == SDL_KEYDOWN) {
-      if(event->key.keysym.sym == SDLK_ESCAPE)
+    else if(event->type == SDL_EVENT_KEY_DOWN) {
+      if(event->key.key == SDLK_ESCAPE)
         finish(REJECTED);
-      else if((event->key.keysym.sym == SDLK_MINUS || event->key.keysym.sym == SDLK_EQUALS)
-          && (event->key.keysym.mod & KMOD_CTRL)) {
-        zoomListView(event->key.keysym.sym == SDLK_MINUS ? -1 : 1);
+      else if((event->key.key == SDLK_MINUS || event->key.key == SDLK_EQUALS)
+          && (event->key.mod & SDL_KMOD_CTRL)) {
+        zoomListView(event->key.key == SDLK_MINUS ? -1 : 1);
       }
 #if PLATFORM_ANDROID
-      else if(event->key.keysym.sym == SDLK_AC_BACK)
+      else if(event->key.key == SDLK_AC_BACK)
         AndroidHelper::moveTaskToBack();
 #endif
       else

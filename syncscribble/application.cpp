@@ -676,15 +676,15 @@ bool Application::processEvents()
     //PLATFORM_LOG("%s\n", sdlEventLog(&event).c_str());
     TRACE_SCOPE("sdlEvent: type = %s", sdlEventName(&event).c_str());
 #if IS_DEBUG
-    if(event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_PRINTSCREEN) {
-      if(event.key.keysym.mod & KMOD_CTRL)
+    if(event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_PRINTSCREEN) {
+      if(event.key.mod & SDL_KMOD_CTRL)
         SvgGui::debugDirty = !SvgGui::debugDirty;
       else {
         Window* debugWin = gui->windowfromSDLID(event.key.windowID);
         if(debugWin && debugWin->modalChild())
           debugWin = debugWin->modalChild();
         debugWin = debugWin ? debugWin : gui->windows.front();
-        if(!(event.key.keysym.mod & KMOD_SHIFT)) {
+        if(!(event.key.mod & SDL_KMOD_SHIFT)) {
           // need to rerun layout w/ debugLayout set to get layout:ltwh data (prevent w/ Shift+PrintScreen)
           SvgGui::debugLayout = true;
           layoutAndDraw();

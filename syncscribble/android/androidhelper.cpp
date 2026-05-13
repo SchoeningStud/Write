@@ -218,15 +218,15 @@ static void jniTouchEvent(JNIEnv* env, jclass,
   // ACTION_DOWN = 0, ACTION_UP = 1, ACTION_MOVE = 2, ACTION_CANCEL = 3,
   //  ACTION_OUTSIDE = 4, ACTION_POINTER_DOWN = 5, ACTION_POINTER_UP = 6
   static const int actionToSDL[]
-      = {SDL_FINGERDOWN, SDL_FINGERUP, SDL_FINGERMOTION, SVGGUI_FINGERCANCEL, 0, SDL_FINGERDOWN, SDL_FINGERUP};
+      = {SDL_EVENT_FINGER_DOWN, SDL_EVENT_FINGER_UP, SDL_EVENT_FINGER_MOTION, SVGGUI_FINGERCANCEL, 0, SDL_EVENT_FINGER_DOWN, SDL_EVENT_FINGER_UP};
   // unknown, finger, stylus, mouse, eraser
   static const int toolToSDL[] = {0, 1, PenPointerPen, 3, PenPointerEraser};
 
   SDL_Event event = {0};
-  event.type = action >= 0 && action < 7 ? actionToSDL[action] : SDL_FINGERMOTION;
+  event.type = action >= 0 && action < 7 ? actionToSDL[action] : SDL_EVENT_FINGER_MOTION;
   event.tfinger.timestamp = t;
-  event.tfinger.touchId = toolType >= 0 && toolType < 5 ? toolToSDL[toolType] : 0;
-  event.tfinger.fingerId = ptrId;  //eventtype == SDL_FINGERMOTION ? buttons : button;
+  event.tfinger.touchID = toolType >= 0 && toolType < 5 ? toolToSDL[toolType] : 0;
+  event.tfinger.fingerID = ptrId;  //eventtype == SDL_EVENT_FINGER_MOTION ? buttons : button;
   event.tfinger.x = x;
   event.tfinger.y = y;
   event.tfinger.dx = major;

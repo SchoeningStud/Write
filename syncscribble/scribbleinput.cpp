@@ -2,13 +2,6 @@
 #include "ugui/svggui.h"
 #include "scribbleview.h"
 
-#ifndef SDL_EVENT_FINGER_DOWN
-#define SDL_EVENT_FINGER_DOWN SDL_FINGERDOWN
-#define SDL_EVENT_FINGER_MOTION SDL_FINGERMOTION
-#define SDL_EVENT_FINGER_UP SDL_FINGERUP
-#endif
-
-
 // instance methods
 
 int ScribbleInput::pressedKey = 0;
@@ -63,17 +56,17 @@ bool ScribbleInput::sdlEvent(SvgGui* gui, SDL_Event* event)
     int modemod = MODEMOD_NONE;
     bool isLegacyPenTouch = false;
 #if !PLATFORM_LINUX
-    isLegacyPenTouch = event->tfinger.touchId == PenPointerPen || event->tfinger.touchId == PenPointerEraser;
+    isLegacyPenTouch = event->tfinger.touchID == PenPointerPen || event->tfinger.touchID == PenPointerEraser;
 #endif
     if(isLegacyPenTouch) {
       inputsrc = INPUTSOURCE_PEN;
-      modemod = (event->tfinger.fingerId & ~SDL_BUTTON_LMASK) ? MODEMOD_PENBTN : MODEMOD_NONE;
-      if(event->tfinger.touchId == PenPointerEraser)
+      modemod = (event->tfinger.fingerID & ~SDL_BUTTON_LMASK) ? MODEMOD_PENBTN : MODEMOD_NONE;
+      if(event->tfinger.touchID == PenPointerEraser)
         modemod = MODEMOD_ERASE;
     }
-    else if(event->tfinger.touchId == SDL_TOUCH_MOUSEID) {
+    else if(event->tfinger.touchID == SDL_TOUCH_MOUSEID) {
       inputsrc = INPUTSOURCE_MOUSE;
-      modemod = (event->tfinger.fingerId & SDL_BUTTON_RMASK) ? MODEMOD_PENBTN : 0;
+      modemod = (event->tfinger.fingerID & SDL_BUTTON_RMASK) ? MODEMOD_PENBTN : 0;
     }
     if(event->type != SDL_EVENT_FINGER_MOTION || enableHoverEvents
         || (scribbling != NOT_SCRIBBLING && currInputSource == inputsrc)) {
@@ -81,13 +74,13 @@ bool ScribbleInput::sdlEvent(SvgGui* gui, SDL_Event* event)
       // TODO: move this to ScribbleMode
       SDL_Keymod kbmod = SDL_GetModState();
       // on Linux, non-modifier key down (e.g. space bar) blocks mouse events, so Ctrl+Shift is alternate
-      if(pressedKey == SDLK_SPACE || ((kbmod & KMOD_CTRL) && (kbmod & KMOD_SHIFT)))
+      if(pressedKey == SDLK_SPACE || ((kbmod & SDL_KMOD_CTRL) && (kbmod & SDL_KMOD_SHIFT)))
         modemod |= MODE_PAN << 24;
-      else if(kbmod & KMOD_SHIFT)
+      else if(kbmod & SDL_KMOD_SHIFT)
         modemod |= MODE_ERASE << 24;
-      else if(kbmod & KMOD_CTRL)
+      else if(kbmod & SDL_KMOD_CTRL)
         modemod |= MODE_SELECT << 24;
-      else if(kbmod & KMOD_ALT)
+      else if(kbmod & SDL_KMOD_ALT)
         modemod |= MODE_INSSPACE << 24;
       else if(pressedKey == SDLK_VOLUMEUP || pressedKey == SDLK_VOLUMEDOWN)
         modemod |= MODEMOD_PENBTN;
@@ -124,13 +117,13 @@ bool ScribbleInput::sdlEvent(SvgGui* gui, SDL_Event* event)
     if(event->type != SDL_EVENT_PEN_MOTION || enableHoverEvents
         || (scribbling != NOT_SCRIBBLING && currInputSource == INPUTSOURCE_PEN)) {
       SDL_Keymod kbmod = SDL_GetModState();
-      if(pressedKey == SDLK_SPACE || ((kbmod & KMOD_CTRL) && (kbmod & KMOD_SHIFT)))
+      if(pressedKey == SDLK_SPACE || ((kbmod & SDL_KMOD_CTRL) && (kbmod & SDL_KMOD_SHIFT)))
         modemod |= MODE_PAN << 24;
-      else if(kbmod & KMOD_SHIFT)
+      else if(kbmod & SDL_KMOD_SHIFT)
         modemod |= MODE_ERASE << 24;
-      else if(kbmod & KMOD_CTRL)
+      else if(kbmod & SDL_KMOD_CTRL)
         modemod |= MODE_SELECT << 24;
-      else if(kbmod & KMOD_ALT)
+      else if(kbmod & SDL_KMOD_ALT)
         modemod |= MODE_INSSPACE << 24;
       else if(pressedKey == SDLK_VOLUMEUP || pressedKey == SDLK_VOLUMEDOWN)
         modemod |= MODEMOD_PENBTN;
@@ -154,7 +147,7 @@ bool ScribbleInput::sdlEvent(SvgGui* gui, SDL_Event* event)
       Point p0 = parent->screenOrigin;
       auto points = static_cast<std::vector<SDL_Finger>*>(event->user.data2);
       for(const SDL_Finger& pt : *points) {
-        inputevent_t t = pt.id == fevent->tfinger.fingerId ? typeFromSDLFinger(fevent->type) : INPUTEVENT_NONE;
+        inputevent_t t = pt.id == fevent->tfinger.fingerID ? typeFromSDLFinger(fevent->type) : INPUTEVENT_NONE;
         ievent.points.push_back(InputPoint(t, pt.x - p0.x, pt.y - p0.y, pt.pressure > 0 ? pt.pressure : 1));
       }
       if(!ievent.points.empty())  // seems this can still happen, so prevent crash

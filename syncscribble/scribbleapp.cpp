@@ -691,9 +691,9 @@ bool ScribbleApp::sdlEventHandler(SDL_Event* event)
 #endif
     }
     return false;  // propagate event for GUI
-  case SDL_KEYDOWN:
+  case SDL_EVENT_KEY_DOWN:
     return keyPressEvent(event);
-  case SDL_KEYUP:
+  case SDL_EVENT_KEY_UP:
     ScribbleInput::pressedKey = 0;
     return false;
   case SDL_DROPFILE:
@@ -794,7 +794,7 @@ const int ScribbleApp::volDnActions[] = {0, ID_UNDO, ID_ZOOMOUT, ID_NEXTPAGE, ID
 
 bool ScribbleApp::keyPressEvent(SDL_Event* event)
 {
-  SDL_Keycode key = event->key.keysym.sym;
+  SDL_Keycode key = event->key.key;
   ScribbleInput::pressedKey = 0;  // will only be set to new key if not handled
   switch(key) {
   case SDLK_ESCAPE:
@@ -846,15 +846,15 @@ bool ScribbleApp::keyPressEvent(SDL_Event* event)
     if(!win->shortcuts.empty()) {
       // we could get a slight optimization by returning if pressed key is a modifier, but not worth the trouble
       std::string keystr;
-      Uint16 mods = event->key.keysym.mod;
+      Uint16 mods = event->key.mod;
 #if PLATFORM_OSX
-      if(mods & KMOD_GUI) { keystr.append("Ctrl+"); }  // Mac OS Cmd key
+      if(mods & SDL_KMOD_GUI) { keystr.append("Ctrl+"); }  // Mac OS Cmd key
 #else
-      if(mods & KMOD_CTRL) { keystr.append("Ctrl+"); }
+      if(mods & SDL_KMOD_CTRL) { keystr.append("Ctrl+"); }
 #endif
-      if(mods & KMOD_ALT) { keystr.append("Alt+"); }
-      if(mods & KMOD_SHIFT) { keystr.append("Shift+"); }
-      keystr.append(SDL_GetKeyName(event->key.keysym.sym));
+      if(mods & SDL_KMOD_ALT) { keystr.append("Alt+"); }
+      if(mods & SDL_KMOD_SHIFT) { keystr.append("Shift+"); }
+      keystr.append(SDL_GetKeyName(event->key.key));
       auto it = win->shortcuts.find(keystr);
       if(it != win->shortcuts.end()) {
         if(it->second && it->second->enabled())

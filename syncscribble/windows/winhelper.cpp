@@ -42,8 +42,8 @@ static POINTER_INFO pointerInfo[MAX_N_POINTERS];
 static POINTER_PEN_INFO penPointerInfo[MAX_N_POINTERS];
 static bool winTabProximity = false;
 
-enum TouchPointState { TouchPointPressed = SDL_FINGERDOWN, TouchPointMoved = SDL_FINGERMOTION, TouchPointReleased = SDL_FINGERUP };
-enum PenEventType { TabletPress = SDL_FINGERDOWN, TabletMove = SDL_FINGERMOTION, TabletRelease = SDL_FINGERUP };
+enum TouchPointState { TouchPointPressed = SDL_EVENT_FINGER_DOWN, TouchPointMoved = SDL_EVENT_FINGER_MOTION, TouchPointReleased = SDL_EVENT_FINGER_UP };
+enum PenEventType { TabletPress = SDL_EVENT_FINGER_DOWN, TabletMove = SDL_EVENT_FINGER_MOTION, TabletRelease = SDL_EVENT_FINGER_UP };
 
 struct TouchPoint
 {
@@ -76,10 +76,10 @@ static void notifyTabletEvent(PenEventType eventtype, const Point& globalpos,
   SDL_zero(event);
   event.type = eventtype;
   event.tfinger.timestamp = t;  // SDL_GetTicks();  // normally done by SDL_PushEvent()
-  event.tfinger.touchId = eraser ? PenPointerEraser : PenPointerPen;
-  //event.tfinger.fingerId = 0;  // if SDL sees more than one finger id for a touch id, that's multitouch
+  event.tfinger.touchID = eraser ? PenPointerEraser : PenPointerPen;
+  //event.tfinger.fingerID = 0;  // if SDL sees more than one finger id for a touch id, that's multitouch
   // POINTER_FLAGS >> 4 == SDL_BUTTON_LMASK for pen down w/ no barrel buttons pressed, as desired
-  event.tfinger.fingerId = eventtype == SDL_FINGERMOTION ? buttons : button;
+  event.tfinger.fingerID = eventtype == SDL_EVENT_FINGER_MOTION ? buttons : button;
   event.tfinger.x = (globalpos.x - clientRect.left);  // / clientRect.width();
   event.tfinger.y = (globalpos.y - clientRect.top);  // / clientRect.height();
   // stick buttons in dx, dy for now
@@ -97,8 +97,8 @@ static void notifyTouchEvent(TouchPointState touchstate, const std::vector<Touch
     SDL_zero(event);
     event.type = p.state;
     event.tfinger.timestamp = t;  // SDL_GetTicks();  // normally done by SDL_PushEvent()
-    event.tfinger.touchId = 0;
-    event.tfinger.fingerId = p.id;
+    event.tfinger.touchID = 0;
+    event.tfinger.fingerID = p.id;
     event.tfinger.x = (p.screenPos.x - clientRect.left);  // /clientRect.width();
     event.tfinger.y = (p.screenPos.y - clientRect.top);  // /clientRect.height();
     event.tfinger.pressure = p.pressure;
@@ -458,10 +458,10 @@ static bool winInputEvent(MSG* m) //, long* result)
   case WM_MOUSEHWHEEL:
   {
     // SDL doesn't update its internal mod state if window doesn't have focus, so get mods from Windows
-    uint32_t mods = GetKeyState(VK_CONTROL) < 0 ? KMOD_CTRL : 0;  // high order bit set if key is down
-    mods |= GetKeyState(VK_SHIFT) < 0 ? KMOD_SHIFT : 0;  // high order bit set if key is down
+    uint32_t mods = GetKeyState(VK_CONTROL) < 0 ? SDL_KMOD_CTRL : 0;  // high order bit set if key is down
+    mods |= GetKeyState(VK_SHIFT) < 0 ? SDL_KMOD_SHIFT : 0;  // high order bit set if key is down
     SDL_Event event = { 0 };  // we'll leave windowID and which == 0
-    event.type = SDL_MOUSEWHEEL;
+    event.type = SDL_EVENT_MOUSE_WHEEL;
     //event.wheel.timestamp = SDL_GetTicks();
     event.wheel.x = m->message == WM_MOUSEWHEEL ? 0 : GET_WHEEL_DELTA_WPARAM(m->wParam);
     event.wheel.y = m->message == WM_MOUSEWHEEL ? GET_WHEEL_DELTA_WPARAM(m->wParam) : 0;
@@ -548,12 +548,12 @@ void initTouchInput(SDL_Window* sdlwin, bool useWintab)
 
   // SDL divides mouse wheel step by WHEEL_DELTA (== 120) and sends as int - this is fine for an actual
   //  mouse wheel but throws away resolution for touchpad scroll, so we handle it ourselves
-  SDL_EventState(SDL_MOUSEWHEEL, SDL_DISABLE);
+  SDL_EventState(SDL_EVENT_MOUSE_WHEEL, SDL_DISABLE);
   // disable SDL's touch handling since it will send finger events for pen input too
   // - technically not necessary if there are no WM_TOUCH events
-  SDL_EventState(SDL_FINGERDOWN, SDL_DISABLE);
-  SDL_EventState(SDL_FINGERMOTION, SDL_DISABLE);
-  SDL_EventState(SDL_FINGERUP, SDL_DISABLE);
+  SDL_EventState(SDL_EVENT_FINGER_DOWN, SDL_DISABLE);
+  SDL_EventState(SDL_EVENT_FINGER_MOTION, SDL_DISABLE);
+  SDL_EventState(SDL_EVENT_FINGER_UP, SDL_DISABLE);
   // tell Windows not to send WM_TOUCH (SDL calls RegisterTouchWindow())
   // - doesn't seem to be necessary if we accept WM_POINTER, but can't hurt I guess
   UnregisterTouchWindow(hwnd);  // Win 7+

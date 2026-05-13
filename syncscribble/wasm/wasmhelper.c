@@ -15,25 +15,25 @@ void emPtrEvent(const char* device, int evtype, int ptrid, int buttons, double x
   static int mouseBtns = 0;
   SDL_Event event = {0};
   if(strcmp(device, "pen") == 0) {
-    event.tfinger.touchId = buttons & 32 ? PenPointerEraser : PenPointerPen;
-    event.tfinger.fingerId = buttons;
+    event.tfinger.touchID = buttons & 32 ? PenPointerEraser : PenPointerPen;
+    event.tfinger.fingerID = buttons;
   }
   else if(strcmp(device, "touch") == 0) {
-    event.tfinger.touchId = 0;
-    event.tfinger.fingerId = ptrid;
+    event.tfinger.touchID = 0;
+    event.tfinger.fingerID = ptrid;
   }
   else if(strcmp(device, "mouse") == 0) {
     // swap bits 1 and 2 (if they are different) - middle button / right button
     if((buttons & 0x6) == 0x4 || (buttons & 0x6) == 0x2)
       buttons ^= 0x6;
-    event.tfinger.touchId = SDL_TOUCH_MOUSEID;
-    event.tfinger.fingerId = (evtype == 1) ? buttons : (buttons ^ mouseBtns);
+    event.tfinger.touchID = SDL_TOUCH_MOUSEID;
+    event.tfinger.fingerID = (evtype == 1) ? buttons : (buttons ^ mouseBtns);
     mouseBtns = buttons;
   }
   else
     return;
 
-  event.type = evtype == 1 ? SDL_FINGERDOWN : (evtype == -1 ? SDL_FINGERUP : SDL_FINGERMOTION);
+  event.type = evtype == 1 ? SDL_EVENT_FINGER_DOWN : (evtype == -1 ? SDL_EVENT_FINGER_UP : SDL_EVENT_FINGER_MOTION);
   event.tfinger.x = x;
   event.tfinger.y = y;
   //event.tfinger.dx = tiltX;  // use dx, dy for tilt

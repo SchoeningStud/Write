@@ -384,9 +384,9 @@ PenToolbar::PenToolbar() : Toolbar(widgetNode("#toolbar")), pen(Color::BLACK, 0)
 
   addHandler([this](SvgGui* gui, SDL_Event* event) {
     // Return focus to ScribbleArea if Enter or Esc pressed (these keys are propagated above TextEdit)
-    if(event->type == SDL_KEYDOWN) {
-      SDL_Keycode key = event->key.keysym.sym;
-      //Uint16 mods = event->key.keysym.mod;
+    if(event->type == SDL_EVENT_KEY_DOWN) {
+      SDL_Keycode key = event->key.key;
+      //Uint16 mods = event->key.mod;
       if(key == SDLK_ESCAPE || key == SDLK_RETURN) {
         if(onChanged)
           onChanged(YIELD_FOCUS);
