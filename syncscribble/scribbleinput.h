@@ -4,6 +4,7 @@
 #include <vector>
 #include "basics.h"
 #include "ulib/geom.h"
+#include "scribblemode.h"
 
 enum inputevent_t {INPUTEVENT_RELEASE=-1, INPUTEVENT_MOVE=0, INPUTEVENT_PRESS=1, INPUTEVENT_CANCEL=2,
                    INPUTEVENT_NONE=3, INPUTEVENT_ENTER=4, INPUTEVENT_LEAVE=5};

@@ -108,12 +108,12 @@ ScribbleWidget::ScribbleWidget(ScribbleView* sv) : Widget(new SvgCustomNode), sc
     else if(event->type == SvgGui::TIMER) {
       return scribbleView->doTimerEvent(0);
     }
-    else if(event->type == SDL_MOUSEWHEEL) {
+    else if(event->type == SDL_EVENT_MOUSE_WHEEL) {
       // since mouse wheel zooming was mainly added to support pinch zoom on Wacom tablets, we previously
       //  didn't do it if pinch zoom was disabled for touch
       //if(scribbleView->scribbleInput->multiTouchMode == INPUTMODE_ZOOM) {
       uint32_t mods = (PLATFORM_WIN || PLATFORM_LINUX) ? (event->wheel.direction >> 16) : SDL_GetModState();
-      if(mods & KMOD_CTRL) {
+      if(mods & SDL_KMOD_CTRL) {
         Dim speed = scribbleView->cfg->Float("wheelZoomSpeed")/120.0;
         Point p = window()->gui()->prevFingerPos - scribbleView->screenOrigin;
         scribbleView->zoomBy(std::pow(1.25, speed*event->wheel.y), p.x, p.y);
@@ -121,27 +121,27 @@ ScribbleWidget::ScribbleWidget(ScribbleView* sv) : Widget(new SvgCustomNode), sc
       }
       else {
         Dim speed = scribbleView->cfg->Float("wheelScrollSpeed");
-        if(mods & KMOD_SHIFT)
+        if(mods & SDL_KMOD_SHIFT)
           scribbleView->scrollBy(speed*event->wheel.y, -speed*event->wheel.x);
         else
           scribbleView->scrollBy(-speed*event->wheel.x, speed*event->wheel.y);
       }
       return true;
     }
-    else if(event->type == SDL_KEYDOWN) {
+    else if(event->type == SDL_EVENT_KEY_DOWN) {
       // we will only get key event if we are *pressed*, since we are not focusable; if that changes, we
       //  need to check scribbling != NOT_SCRIBBLING so that Esc gets passed up for quick exit in debug mode
-      if(event->key.keysym.sym == SDLK_ESCAPE) {
+      if(event->key.key == SDLK_ESCAPE) {
         scribbleView->scribbleInput->cancelAction();
         scribbleView->doRefresh();
         return true;
       }
-      ScribbleInput::pressedKey = event->key.keysym.sym;
+      ScribbleInput::pressedKey = event->key.key;
     }
-    else if(event->type == SDL_KEYUP)
+    else if(event->type == SDL_EVENT_KEY_UP)
       ScribbleInput::pressedKey = 0;
     else if(event->type == SvgGui::LONG_PRESS) {
-      // we accept both touchId == SvgGui::SVG_GUI_LONGPRESSID and touchId == SvgGui::SVG_GUI_LONGPRESSALTID
+      // we accept both touchID == SvgGui::SVG_GUI_LONGPRESSID and touchID == SvgGui::SVG_GUI_LONGPRESSALTID
       // long press is a separate event which does not interfere with normal touch input processing
       //  SVG_GUI_LONGPRESSALTID is for different widget under touch point than when initially pressed, which
       //  for ScribbleView means overlay widget
@@ -151,8 +151,8 @@ ScribbleWidget::ScribbleWidget(ScribbleView* sv) : Widget(new SvgCustomNode), sc
     else {
       auto prev = scribbleView->scribbleInput->scribbling;
       if(scribbleView->scribbleInput->sdlEvent(gui, event)) {
-        // SDL_FINGERDOWN case added to make it easier to recover from messed up state
-        if((prev == ScribbleInput::NOT_SCRIBBLING || event->type == SDL_FINGERDOWN) &&
+        // SDL_EVENT_FINGER_DOWN case added to make it easier to recover from messed up state
+        if((prev == ScribbleInput::NOT_SCRIBBLING || event->type == SDL_EVENT_FINGER_DOWN) &&
             scribbleView->scribbleInput->scribbling != ScribbleInput::NOT_SCRIBBLING)
           gui->setPressed(this);
         scribbleView->doRefresh();
@@ -169,13 +169,13 @@ void ScribbleWidget::setScroller(Widget* scrollhandle, Widget* scrollind)
   scrollIndicator = scrollind;
   // a generic drag handler doesn't really work because, mouse can keep moving after reaching edge of area
   scroller->addHandler([this](SvgGui* gui, SDL_Event* event) {
-    if(event->type == SDL_FINGERDOWN && event->tfinger.fingerId == SDL_BUTTON_LMASK) {
+    if(event->type == SDL_EVENT_FINGER_DOWN && event->tfinger.fingerID == SDL_BUTTON_LMASK) {
       //initScrollerY = event->button.y - scroller->node->transformedBounds().top;
       prevScrollerY = event->tfinger.y;
       gui->setPressed(scroller);
       return true;
     }
-    if(event->type == SDL_FINGERMOTION && gui->pressedWidget == scroller) {
+    if(event->type == SDL_EVENT_FINGER_MOTION && gui->pressedWidget == scroller) {
       Rect scrollerBBox = scrollIndicator->node->bounds();  //scroller->node->bounds();
       // this failed approach requires scroller position be updated immediately in doPan (instead of
       //  in paintEvent) ... but that causes scroller to get squished down due to something going wrong on

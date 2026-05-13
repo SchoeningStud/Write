@@ -325,24 +325,24 @@ int iosSafeAreaInsets(float* top, float* bottom)
 @implementation SDL_uikitview(Pencil)
 //static float prevForce = -1;
 
-- (void)sendTouchEvent:(UITouch *)touch ofType:(int)eventType forFinger:(size_t)fingerId
+- (void)sendTouchEvent:(UITouch *)touch ofType:(int)eventType forFinger:(size_t)fingerID
 {
-  SDL_TouchID touchId = touch.type == UITouchTypeStylus ? PenPointerPen : 1;
+  SDL_TouchID touchID = touch.type == UITouchTypeStylus ? PenPointerPen : 1;
   CGPoint pos = [touch preciseLocationInView:self];
   // without % INT_MAX, ts gets clamped to INT_MAX and kinetic scroll breaks after ~24 days
   int ts = (int)((long long)([touch timestamp]*1000.0 + 0.5) % INT_MAX);
   // touch.force / touch.maximumPossibleForce? - force is normalized so that 1.0 is normal force but can
   //  be greater than 1, while StrokeBuilder clamps pressure to 1
   // ... for now, just divide by 2 since 0.5 is typical pressure on other platforms
-  float pressure = (touchId == PenPointerPen || touch.force > 0) ? (float)touch.force/2 : 1.0f;
+  float pressure = (touchID == PenPointerPen || touch.force > 0) ? (float)touch.force/2 : 1.0f;
   // we'll use diameter instead of radius (closer to Windows, Android)
   float w = 2*touch.majorRadius;
 
   SDL_Event event = {0};
   event.type = eventType;
   event.tfinger.timestamp = ts;  //SDL_GetTicks();  // normally done by SDL_PushEvent()
-  event.tfinger.touchId = touchId;
-  event.tfinger.fingerId = touchId == PenPointerPen ? SDL_BUTTON_LMASK : (SDL_FingerID)fingerId;
+  event.tfinger.touchID = touchID;
+  event.tfinger.fingerID = touchID == PenPointerPen ? SDL_BUTTON_LMASK : (SDL_FingerID)fingerID;
   event.tfinger.x = pos.x;
   event.tfinger.y = pos.y;
   // size of touch point
@@ -351,8 +351,8 @@ int iosSafeAreaInsets(float* top, float* bottom)
   event.tfinger.pressure = pressure;
   // PeepEvents bypasses gesture recognizer and event filters
   SDL_PeepEvents(&event, 1, SDL_ADDEVENT, 0, 0);  //SDL_PushEvent(&event);
-  //const char* evname = eventType == SDL_FINGERDOWN ? "SDL_FINGERDOWN" : (eventType == SDL_FINGERUP ? "SDL_FINGERUP"
-  //    : (eventType == SVGGUI_FINGERCANCEL ? "SVGGUI_FINGERCANCEL" : "SDL_FINGERMOTION"));
+  //const char* evname = eventType == SDL_EVENT_FINGER_DOWN ? "SDL_EVENT_FINGER_DOWN" : (eventType == SDL_EVENT_FINGER_UP ? "SDL_EVENT_FINGER_UP"
+  //    : (eventType == SVGGUI_FINGERCANCEL ? "SVGGUI_FINGERCANCEL" : "SDL_EVENT_FINGER_MOTION"));
   //NSLog(@"%s touch: %f, %f; force %f; radius %f; time %d", evname, pos.x, pos.y, touch.force, touch.majorRadius, ts);
 }
 
@@ -365,13 +365,13 @@ int iosSafeAreaInsets(float* top, float* bottom)
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
   for (UITouch* touch in touches)
-    [self sendTouchEvent:touch ofType:SDL_FINGERDOWN forFinger:(size_t)touch];
+    [self sendTouchEvent:touch ofType:SDL_EVENT_FINGER_DOWN forFinger:(size_t)touch];
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
 {
   for (UITouch* touch in touches)
-    [self sendTouchEvent:touch ofType:SDL_FINGERUP forFinger:(size_t)touch];
+    [self sendTouchEvent:touch ofType:SDL_EVENT_FINGER_UP forFinger:(size_t)touch];
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
@@ -385,7 +385,7 @@ int iosSafeAreaInsets(float* top, float* bottom)
   for (UITouch* touch in touches) {
     NSArray<UITouch*>* cTouches = [event coalescedTouchesForTouch:touch];
     for (UITouch* cTouch in cTouches)
-      [self sendTouchEvent:cTouch ofType:SDL_FINGERMOTION forFinger:(size_t)touch];
+      [self sendTouchEvent:cTouch ofType:SDL_EVENT_FINGER_MOTION forFinger:(size_t)touch];
   }
 }
 
@@ -402,7 +402,7 @@ int iosSafeAreaInsets(float* top, float* bottom)
   if (sender.state == UIGestureRecognizerStateBegan) dr0 = {0,0};
 
   SDL_Event event = {0};
-  event.type = SDL_MOUSEWHEEL;
+  event.type = SDL_EVENT_MOUSE_WHEEL;
   event.wheel.timestamp = SDL_GetTicks();  // gesture recognizer doesn't provide timestamp?
   event.wheel.windowID = 0;
   event.wheel.which = 0;  //SDL_TOUCH_MOUSEID;

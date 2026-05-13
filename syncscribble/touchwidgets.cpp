@@ -98,10 +98,10 @@ ButtonDragDial::ButtonDragDial(Button* tb) : AbsPosWidget(new SvgCustomNode), to
   // if this does work out, need to add an official Widget::clearHandlers()
   toolBtn->sdlHandlers.clear();
   toolBtn->addHandler([this](SvgGui* gui, SDL_Event* event){
-    if(event->type == SDL_FINGERDOWN || isLongPressOrRightClick(event)) {
+    if(event->type == SDL_EVENT_FINGER_DOWN || isLongPressOrRightClick(event)) {
       // let's try long press to switch to alt mode
       toolBtn->node->setXmlClass(addWord(removeWord(toolBtn->node->xmlClass(), "hovered"), "pressed").c_str());
-      altMode = event->tfinger.fingerId != SDL_BUTTON_LMASK;
+      altMode = event->tfinger.fingerID != SDL_BUTTON_LMASK;
       dialMoved = false;
       indCount = 0;
       prevAngle = posToAngle(Point(event->tfinger.x, event->tfinger.y));
@@ -109,7 +109,7 @@ ButtonDragDial::ButtonDragDial(Button* tb) : AbsPosWidget(new SvgCustomNode), to
       setVisible(true);
       gui->setPressed(toolBtn);
     }
-    else if(event->type == SDL_FINGERMOTION && isVisible()) {
+    else if(event->type == SDL_EVENT_FINGER_MOTION && isVisible()) {
       Dim deltaAngle = posToAngle(Point(event->tfinger.x, event->tfinger.y)) - prevAngle;
       if(deltaAngle > M_PI)
         deltaAngle -= 2*M_PI;
@@ -124,10 +124,10 @@ ButtonDragDial::ButtonDragDial(Button* tb) : AbsPosWidget(new SvgCustomNode), to
         updateDial(prevAngle, delta == 0, initdelta - delta);
       }
     }
-    else if(event->type == SDL_FINGERUP || event->type == SvgGui::OUTSIDE_PRESSED) {
+    else if(event->type == SDL_EVENT_FINGER_UP || event->type == SvgGui::OUTSIDE_PRESSED) {
       toolBtn->node->removeClass("pressed");
       setVisible(false);
-      if(!altMode && !dialMoved && event->type == SDL_FINGERUP)
+      if(!altMode && !dialMoved && event->type == SDL_EVENT_FINGER_UP)
         onStep(-1);
       else if(altMode && dialMoved)
         onAltStep(0);
@@ -239,7 +239,7 @@ void Menubar::addButton(Button* btn)
       }
       return true;
     }
-    else if(event->type == SDL_FINGERDOWN && event->tfinger.fingerId == SDL_BUTTON_LMASK) {
+    else if(event->type == SDL_EVENT_FINGER_DOWN && event->tfinger.fingerID == SDL_BUTTON_LMASK) {
       // close menu bar menu on 2nd click
       if(btn->mMenu && !gui->menuStack.empty() && btn->mMenu == gui->menuStack.front()) {
         btn->node->removeClass("hovered");
@@ -247,7 +247,7 @@ void Menubar::addButton(Button* btn)
         return true;  // I don't think it makes sense to send onPressed when we are clearing pressed state!
       }
     }
-    else if(event->type == SDL_FINGERUP && (!btn->mMenu || autoClose)) {
+    else if(event->type == SDL_EVENT_FINGER_UP && (!btn->mMenu || autoClose)) {
       gui->closeMenus();
       return false;  // continue to button handler
     }
