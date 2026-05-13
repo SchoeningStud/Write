@@ -325,7 +325,7 @@ int iosSafeAreaInsets(float* top, float* bottom)
 @implementation SDL_uikitview(Pencil)
 //static float prevForce = -1;
 
-- (void)sendTouchEvent:(UITouch *)touch ofType:(int)eventType forFinger:(size_t)fingerID
+- (void)sendTouchEvent:(UITouch *)touch ofType:(int)eventType forFinger:(size_t)fingerId
 {
   SDL_TouchID touchID = touch.type == UITouchTypeStylus ? PenPointerPen : 1;
   CGPoint pos = [touch preciseLocationInView:self];
@@ -342,7 +342,7 @@ int iosSafeAreaInsets(float* top, float* bottom)
   event.type = eventType;
   event.tfinger.timestamp = ts;  //SDL_GetTicks();  // normally done by SDL_PushEvent()
   event.tfinger.touchID = touchID;
-  event.tfinger.fingerID = touchID == PenPointerPen ? SDL_BUTTON_LMASK : (SDL_FingerID)fingerID;
+  event.tfinger.fingerID = touchID == PenPointerPen ? SDL_BUTTON_LMASK : (SDL_FingerID)fingerId;
   event.tfinger.x = pos.x;
   event.tfinger.y = pos.y;
   // size of touch point
