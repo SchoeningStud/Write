@@ -71,10 +71,10 @@ void ScribbleArea::loadConfig(ScribbleConfig* _cfg)
     penpaint.setFillBrush(Color::BLACK);
     penpaint.drawPath(Path2D().addEllipse(penradius + 1, penradius + 1, penradius+0.5, penradius+0.5));
     penpaint.endFrame();
-    SDL_Surface* pensurf = SDL_CreateRGBSurfaceFrom((void*)penimg.bytes(),
-        penimg.width, penimg.height, 32, 4*penimg.width, Color::R, Color::G, Color::B, Color::A);
+    SDL_Surface* pensurf = SDL_CreateSurfaceFrom(penimg.width, penimg.height,
+        SDL_PIXELFORMAT_RGBA8888, (void*)penimg.bytes(), 4*penimg.width);
     penCursor.reset(SDL_CreateColorCursor(pensurf, int(penradius + 1.5), int(penradius + 1.5)));
-    SDL_FreeSurface(pensurf);
+    SDL_DestroySurface(pensurf);
 
     Image eraserimg(int(2*eraserradius + 3), int(2*eraserradius + 3));
     Painter eraserpaint(Painter::PAINT_SW | Painter::NO_TEXT, &eraserimg);
@@ -86,12 +86,12 @@ void ScribbleArea::loadConfig(ScribbleConfig* _cfg)
     eraserpaint.setStrokeWidth(1);
     eraserpaint.drawPath(Path2D().addEllipse(eraserradius + 1, eraserradius + 1, eraserradius, eraserradius));
     eraserpaint.endFrame();
-    SDL_Surface* erasersurf = SDL_CreateRGBSurfaceFrom((void*)eraserimg.bytes(),
-        eraserimg.width, eraserimg.height, 32, 4*eraserimg.width, Color::R, Color::G, Color::B, Color::A);
+    SDL_Surface* erasersurf = SDL_CreateSurfaceFrom(eraserimg.width, eraserimg.height,
+        SDL_PIXELFORMAT_RGBA8888, (void*)eraserimg.bytes(), 4*eraserimg.width);
     eraseCursor.reset(SDL_CreateColorCursor(erasersurf, int(eraserradius + 1.5), int(eraserradius + 1.5)));
-    SDL_FreeSurface(erasersurf);
+    SDL_DestroySurface(erasersurf);
 
-    panCursor.reset(SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND));
+    panCursor.reset(SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_POINTER));
   }
 #endif
 #ifdef SCRIBBLE_IAP
@@ -2422,7 +2422,7 @@ void ScribbleArea::doMotionEvent(const InputEvent& event, inputevent_t eventtype
 #if !PLATFORM_MOBILE
     // in the future, we will have custom cursors for other modes to support pen hover on iOS/Android
     if(cursorMode == CURSORMODE_HIDE || (drawCursor == 2 && (cursorMode == MODE_STROKE || cursorMode == MODE_ERASE))) {
-      SDL_ShowCursor(SDL_DISABLE);
+      SDL_HideCursor();
     }
     else {
       if(cursorMode == MODE_PAN)
@@ -2433,7 +2433,7 @@ void ScribbleArea::doMotionEvent(const InputEvent& event, inputevent_t eventtype
         SDL_SetCursor(eraseCursor.get());
       else
         SDL_SetCursor(SDL_GetDefaultCursor());
-      SDL_ShowCursor(SDL_ENABLE);
+      SDL_ShowCursor();
     }
 #endif
   }
