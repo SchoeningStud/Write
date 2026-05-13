@@ -246,7 +246,7 @@ void Application::setupUIScale(float horzdpi)
     //SDL_GetDisplayDPI(0, NULL, &horzdpi, NULL);
     //horzdpi = 168*horzdpi/96;
     //if(horzdpi <= 125) { // 72, 96, and 120 are common garbage values returned by Windows
-      SDL_Rect r;
+      SDL_Rect r = {0, 0, 1920, 1080};
       SDL_DisplayID disp = SDL_GetDisplayForWindow(sdlWindow);
       SDL_GetDisplayBounds(disp ? disp : getDisplayByIndex(0), &r);
       horzdpi = pxRatio*std::max(r.h, r.w)/11.2f;  // 12.3in diag (Surface Pro) => 10.2in width; 14 in diag (X1 yoga) => 12.2in width
@@ -330,12 +330,13 @@ int SDL_main(int argc, char* argv[])
     SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 1);  // needed for sRGB on iOS and Android
 #endif
 
-  SDL_Rect dispBounds;
+  SDL_Rect dispBounds = {0, 0, 1920, 1080};
   auto winGeom = parseNumbersList(ScribbleApp::cfg->String("windowState", ""), 6);
   int dispCount = getDisplayCount();
   int dispIdx = winGeom.size() < 6 || winGeom[5] >= dispCount ? 0 : winGeom[5];
   SDL_DisplayID dispId = getDisplayByIndex(dispIdx);
-  SDL_GetDisplayBounds(dispId, &dispBounds);
+  if(dispId)
+    SDL_GetDisplayBounds(dispId, &dispBounds);
   if(winGeom.size() < 5 || winGeom[0] > dispBounds.w
       || winGeom[1] > dispBounds.h || winGeom[2] > dispBounds.w || winGeom[3] > dispBounds.h)
     winGeom = { 100, 100, 800, 800, 1, 0 };
@@ -496,7 +497,9 @@ int SDL_main(int argc, char* argv[])
   // we could get size from SvgGui winBounds, but we have to get position from SDL anyway
   SDL_DisplayID winDisplay = SDL_GetDisplayForWindow(sdlWindow);
   dispIdx = getDisplayIndex(winDisplay);
-  SDL_GetDisplayBounds(winDisplay ? winDisplay : getDisplayByIndex(0), &dispBounds);
+  SDL_DisplayID fallbackDisplay = winDisplay ? winDisplay : getDisplayByIndex(0);
+  if(fallbackDisplay)
+    SDL_GetDisplayBounds(fallbackDisplay, &dispBounds);
   SDL_GetWindowPosition(sdlWindow, &winX, &winY);
   SDL_GetWindowSize(sdlWindow, &winW, &winH);
   ScribbleApp::cfg->set("windowState", fstring("%d %d %d %d %d %d",
