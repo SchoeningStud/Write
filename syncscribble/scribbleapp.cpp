@@ -572,11 +572,11 @@ bool ScribbleApp::closeSplit()
 int ScribbleApp::sdlEventFilter(SDL_Event* event)
 {
   switch (event->type) {
-  case SDL_APP_TERMINATING:
+  case SDL_EVENT_TERMINATING:
     // note that we expect SDL_APP_WILLENTERBACKGROUND will always be sent before SDL_APP_TERMINATING
     return PLATFORM_ANDROID ? 1 : 0;  // handle on our thread on Android (call finish())
-  case SDL_APP_LOWMEMORY:
-  case SDL_APP_WILLENTERBACKGROUND:
+  case SDL_EVENT_LOW_MEMORY:
+  case SDL_EVENT_WILL_ENTER_BACKGROUND:
 #if PLATFORM_ANDROID
     SvgGui::pushUserEvent(scribbleSDLEvent, APP_SUSPEND);
     saveSem.wait();
@@ -584,12 +584,12 @@ int ScribbleApp::sdlEventFilter(SDL_Event* event)
     appSuspending();
 #endif
     return 0;
-  case SDL_APP_DIDENTERBACKGROUND:
+  case SDL_EVENT_DID_ENTER_BACKGROUND:
     Application::isSuspended = true;
     return 0;
-  case SDL_APP_WILLENTERFOREGROUND:  // restore state
+  case SDL_EVENT_WILL_ENTER_FOREGROUND:  // restore state
     return 0;
-  case SDL_APP_DIDENTERFOREGROUND:  // restart loops
+  case SDL_EVENT_DID_ENTER_FOREGROUND:  // restart loops
     Application::isSuspended = false;
     return 1;  // make sure event loop wakes up
   default:
@@ -637,69 +637,67 @@ static int systemClipboardSerial()
 bool ScribbleApp::sdlEventHandler(SDL_Event* event)
 {
   switch(event->type) {
-  case SDL_QUIT:
+  case SDL_EVENT_QUIT:
     maybeQuit();
     return true;
-  case SDL_WINDOWEVENT:
+  case SDL_EVENT_WINDOW_FOCUS_GAINED:
+  case SDL_EVENT_WINDOW_MOUSE_ENTER:
     // only window event sent at start on Android is ENTER
-    if(event->window.event == SDL_WINDOWEVENT_FOCUS_GAINED
-        || (PLATFORM_ANDROID && event->window.event == SDL_WINDOWEVENT_ENTER)) {
-      if(delayedShowDocList) {
-        delayedShowDocList = false;
-        // allow initial doc list to be canceled on desktop
-        if(!SCRIBBLE_DEBUG) openOrCreateDoc();
-      }
-      isWindowActive = true;
-      // requesting app store review
+    if(delayedShowDocList) {
+      delayedShowDocList = false;
+      // allow initial doc list to be canceled on desktop
+      if(!SCRIBBLE_DEBUG) openOrCreateDoc();
+    }
+    isWindowActive = true;
+    // requesting app store review
 #if PLATFORM_IOS
-      if(cfg->Int("strokeCounter") > 4000 && cfg->Int("lastReviewPrompt") + 180*24*60*60 < int(mSecSinceEpoch()/1000)) {
-        cfg->set("lastReviewPrompt", int(mSecSinceEpoch()/1000));
-        cfg->set("strokeCounter", 0);
-        iosRequestReview();  // "https://apps.apple.com/app/id1498369428?action=write-review"
-      }
+    if(cfg->Int("strokeCounter") > 4000 && cfg->Int("lastReviewPrompt") + 180*24*60*60 < int(mSecSinceEpoch()/1000)) {
+      cfg->set("lastReviewPrompt", int(mSecSinceEpoch()/1000));
+      cfg->set("strokeCounter", 0);
+      iosRequestReview();  // "https://apps.apple.com/app/id1498369428?action=write-review"
+    }
 #elif PLATFORM_ANDROID
-      if(cfg->Int("strokeCounter") > 10000 && cfg->Int("lastReviewPrompt") == 0) {
-        cfg->set("lastReviewPrompt", int(mSecSinceEpoch()/1000));
-        auto choice = messageBox(Question, _("Leave a review?"),
-            _("You can support the development of Write by leaving a review."), {_("OK"), _("Cancel")});
-        if(choice == _("OK"))
-          openURL("http://play.google.com/store/apps/details?id=com.styluslabs.writeqt");
-      }
-#endif
-      if((PLATFORM_LINUX && clipboardExternal) || (cfg->Bool("preloadClipboard") && clipboardSerial != systemClipboardSerial()))
-        loadClipboard();
-      // external modification check timer
-#if !PLATFORM_IOS
-      gui->setTimer(5000, win);
-      checkExtModified();
-#endif
+    if(cfg->Int("strokeCounter") > 10000 && cfg->Int("lastReviewPrompt") == 0) {
+      cfg->set("lastReviewPrompt", int(mSecSinceEpoch()/1000));
+      auto choice = messageBox(Question, _("Leave a review?"),
+          _("You can support the development of Write by leaving a review."), {_("OK"), _("Cancel")});
+      if(choice == _("OK"))
+        openURL("http://play.google.com/store/apps/details?id=com.styluslabs.writeqt");
     }
-    else if(event->window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
-      isWindowActive = false;
-      storeClipboard();
-#if !PLATFORM_IOS
-      gui->removeTimer(win);  // external modification check timer
 #endif
-    }
-    else if(event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+    if((PLATFORM_LINUX && clipboardExternal) || (cfg->Bool("preloadClipboard") && clipboardSerial != systemClipboardSerial()))
+      loadClipboard();
+    // external modification check timer
+#if !PLATFORM_IOS
+    gui->setTimer(5000, win);
+    checkExtModified();
+#endif
+    return false;  // propagate event for GUI
+  case SDL_EVENT_WINDOW_FOCUS_LOST:
+    isWindowActive = false;
+    storeClipboard();
+#if !PLATFORM_IOS
+    gui->removeTimer(win);  // external modification check timer
+#endif
+    return false;  // propagate event for GUI
+  case SDL_EVENT_WINDOW_RESIZED:
 #if PLATFORM_OSX
-      // we may want this for other desktop platforms too, but need to test first
-      Dim dpi = cfg->Int("screenDPI");
-      setupUIScale(dpi >= 10 && dpi <= 1200 ? dpi : 0);
+    // we may want this for other desktop platforms too, but need to test first
+    Dim dpi = cfg->Int("screenDPI");
+    setupUIScale(dpi >= 10 && dpi <= 1200 ? dpi : 0);
 #elif PLATFORM_MOBILE
-      win->orientationChanged();
+    win->orientationChanged();
 #endif
-    }
     return false;  // propagate event for GUI
   case SDL_EVENT_KEY_DOWN:
     return keyPressEvent(event);
   case SDL_EVENT_KEY_UP:
     ScribbleInput::pressedKey = 0;
     return false;
-  case SDL_DROPFILE:
+  case SDL_EVENT_DROP_FILE:
     dropEvent(event);
     return true;
-  case SDL_CLIPBOARDUPDATE:
+  case SDL_EVENT_CLIPBOARD_UPDATE:
     // SDL seems to only send this event for external changes
     clipboardExternal = true;
     // keep Linux eager refresh behavior: when switching between two instances of Write, we may get
@@ -708,7 +706,7 @@ bool ScribbleApp::sdlEventHandler(SDL_Event* event)
       loadClipboard();
     return true;
 #if PLATFORM_ANDROID
-  case SDL_APP_TERMINATING:
+  case SDL_EVENT_TERMINATING:
     // SDL expects main() to return and will call it again, so force exit even if dialog open
     finish();
     return true;
@@ -1354,9 +1352,9 @@ void ScribbleApp::getScreenPageDims(int* w, int* h)
 //#else
   SDL_Rect r;
 #if PLATFORM_IOS
-  SDL_GL_GetDrawableSize(sdlWindow, &r.w, &r.h);
+  SDL_GetWindowSizeInPixels(sdlWindow, &r.w, &r.h);
 #else
-  SDL_GetDisplayBounds(std::max(0, SDL_GetWindowDisplayIndex(sdlWindow)), &r);  // or SDL_GetDisplayUsableBounds
+  SDL_GetDisplayBounds(SDL_GetDisplayForWindow(sdlWindow), &r);  // or SDL_GetDisplayUsableBounds
 #endif
   // 0,0 page size causes problems (e.g. errors loading doc)
   r.w = std::max(200, r.w);
@@ -2046,7 +2044,7 @@ void ScribbleApp::populateRecentFiles()
     return;
 
   SDL_Rect screenrect;
-  SDL_GetDisplayBounds(std::max(0, SDL_GetWindowDisplayIndex(sdlWindow)), &screenrect);  // or SDL_GetDisplayUsableBounds
+  SDL_GetDisplayBounds(SDL_GetDisplayForWindow(sdlWindow), &screenrect);  // or SDL_GetDisplayUsableBounds
   int maxwidth = 0.75*MIN(screenrect.w, screenrect.h);
   for(size_t ii = 0; ii < recentDocs.size(); ++ii) {
     if(recentFileActions.size() <= ii) {

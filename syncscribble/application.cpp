@@ -142,13 +142,51 @@ static void poolWait()
   swFutures.clear();
 }
 
-static int sdlEventFilter(void* app, SDL_Event* event)
+static bool sdlEventFilter(void* app, SDL_Event* event)
 {
 #if PLATFORM_MOBILE || PLATFORM_WIN  // we translate WM_QUERYENDSESSION to SDL_APP_WILLENTERBACKGROUND
   return static_cast<ScribbleApp*>(app)->sdlEventFilter(event);
 #else
-  return 1;
+  return true;
 #endif
+}
+
+static int getDisplayCount()
+{
+  int count = 0;
+  SDL_DisplayID* displays = SDL_GetDisplays(&count);
+  SDL_free(displays);
+  return count;
+}
+
+static SDL_DisplayID getDisplayByIndex(int index)
+{
+  int count = 0;
+  SDL_DisplayID* displays = SDL_GetDisplays(&count);
+  SDL_DisplayID display = 0;
+  if(displays && count > 0) {
+    index = std::max(0, std::min(index, count - 1));
+    display = displays[index];
+  }
+  SDL_free(displays);
+  return display;
+}
+
+static int getDisplayIndex(SDL_DisplayID display)
+{
+  int count = 0;
+  SDL_DisplayID* displays = SDL_GetDisplays(&count);
+  int index = 0;
+  if(displays && count > 0 && display) {
+    for(int ii = 0; ii < count; ++ii) {
+      if(displays[ii] == display) {
+        index = ii;
+        break;
+      }
+    }
+  }
+  SDL_free(displays);
+  return index;
 }
 
 #if PLATFORM_EMSCRIPTEN
@@ -187,7 +225,7 @@ void Application::setupUIScale(float horzdpi)
   SDL_GetWindowSize(sdlWindow, &winWidth, &winHeight);
   int fbWidth = winWidth, fbHeight = winHeight;
   if(glRender || USE_GL_BLITTER)
-    SDL_GL_GetDrawableSize(sdlWindow, &fbWidth, &fbHeight);
+    SDL_GetWindowSizeInPixels(sdlWindow, &fbWidth, &fbHeight);
 
 #if PLATFORM_IOS
   // SDL sets UIWindow.contentScaleFactor to UIScreen.nativeScale to use actual screen res on iPhone Plus, so
@@ -209,8 +247,8 @@ void Application::setupUIScale(float horzdpi)
     //horzdpi = 168*horzdpi/96;
     //if(horzdpi <= 125) { // 72, 96, and 120 are common garbage values returned by Windows
       SDL_Rect r;
-      int disp = SDL_GetWindowDisplayIndex(sdlWindow);
-      SDL_GetDisplayBounds(disp < 0 ? 0 : disp, &r);
+      SDL_DisplayID disp = SDL_GetDisplayForWindow(sdlWindow);
+      SDL_GetDisplayBounds(disp ? disp : getDisplayByIndex(0), &r);
       horzdpi = pxRatio*std::max(r.h, r.w)/11.2f;  // 12.3in diag (Surface Pro) => 10.2in width; 14 in diag (X1 yoga) => 12.2in width
     //}
 #else
@@ -294,8 +332,10 @@ int SDL_main(int argc, char* argv[])
 
   SDL_Rect dispBounds;
   auto winGeom = parseNumbersList(ScribbleApp::cfg->String("windowState", ""), 6);
-  int dispIdx = winGeom.size() < 6 || winGeom[5] >= SDL_GetNumVideoDisplays() ? 0 : winGeom[5];
-  SDL_GetDisplayBounds(dispIdx, &dispBounds);
+  int dispCount = getDisplayCount();
+  int dispIdx = winGeom.size() < 6 || winGeom[5] >= dispCount ? 0 : winGeom[5];
+  SDL_DisplayID dispId = getDisplayByIndex(dispIdx);
+  SDL_GetDisplayBounds(dispId, &dispBounds);
   if(winGeom.size() < 5 || winGeom[0] > dispBounds.w
       || winGeom[1] > dispBounds.h || winGeom[2] > dispBounds.w || winGeom[3] > dispBounds.h)
     winGeom = { 100, 100, 800, 800, 1, 0 };
@@ -310,8 +350,10 @@ int SDL_main(int argc, char* argv[])
 #if !PLATFORM_OSX && !PLATFORM_EMSCRIPTEN
   if(ScribbleApp::cfg->Int("glRender")) {
     // create window so we can create GL context
-    sdlWindow = SDL_CreateWindow("Write", winGeom[0], winGeom[1], winGeom[2], winGeom[3],
+    sdlWindow = SDL_CreateWindow("Write", winGeom[2], winGeom[3],
         winMaxFlag|SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL|SDL_WINDOW_HIGH_PIXEL_DENSITY);
+    if(sdlWindow && !winMaxFlag)
+      SDL_SetWindowPosition(sdlWindow, winGeom[0], winGeom[1]);
     if(!sdlWindow)
       PLATFORM_LOG("SDL_CreateWindow (OpenGL) failed: %s\n", SDL_GetError());
     else {
@@ -347,7 +389,7 @@ int SDL_main(int argc, char* argv[])
         //else if(SDL_GL_SetSwapInterval(1) == 0) PLATFORM_LOG("Non-adpative vsync enabled\n");
         //else PLATFORM_LOG("Unable to enable vsync\n");
         if(!nvgContext) {
-          SDL_GL_DeleteContext(sdlContext);
+          SDL_GL_DestroyContext(sdlContext);
           sdlContext = NULL;
         }
       }  // sdlContext
@@ -369,8 +411,10 @@ int SDL_main(int argc, char* argv[])
 #if PLATFORM_MOBILE
     SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 0);  // otherwise Android will convert SW renderer output!
 #endif
-    sdlWindow = SDL_CreateWindow("Write", winGeom[0], winGeom[1], winGeom[2], winGeom[3],
+    sdlWindow = SDL_CreateWindow("Write", winGeom[2], winGeom[3],
         winMaxFlag|SDL_WINDOW_RESIZABLE|SDL_WINDOW_HIGH_PIXEL_DENSITY|(USE_GL_BLITTER ? SDL_WINDOW_OPENGL : 0));
+    if(sdlWindow && !winMaxFlag)
+      SDL_SetWindowPosition(sdlWindow, winGeom[0], winGeom[1]);
 #if USE_GL_BLITTER
     // note that OpenGL loader is not needed for Mac
     sdlContext = SDL_GL_CreateContext(sdlWindow);
@@ -450,8 +494,9 @@ int SDL_main(int argc, char* argv[])
   if(winMax)
     SDL_RestoreWindow(sdlWindow);
   // we could get size from SvgGui winBounds, but we have to get position from SDL anyway
-  dispIdx = SDL_GetWindowDisplayIndex(sdlWindow);
-  SDL_GetDisplayBounds(dispIdx, &dispBounds);
+  SDL_DisplayID winDisplay = SDL_GetDisplayForWindow(sdlWindow);
+  dispIdx = getDisplayIndex(winDisplay);
+  SDL_GetDisplayBounds(winDisplay ? winDisplay : getDisplayByIndex(0), &dispBounds);
   SDL_GetWindowPosition(sdlWindow, &winX, &winY);
   SDL_GetWindowSize(sdlWindow, &winW, &winH);
   ScribbleApp::cfg->set("windowState", fstring("%d %d %d %d %d %d",
@@ -471,7 +516,7 @@ int SDL_main(int argc, char* argv[])
   if(swThreadPool)
     delete swThreadPool;
   if(sdlContext)
-    SDL_GL_DeleteContext(sdlContext);
+    SDL_GL_DestroyContext(sdlContext);
 #if USE_GL_BLITTER
   nvgswuDeleteBlitter(swBlitter);
   free(swFB);
@@ -503,7 +548,7 @@ static Rect tracedGuiLayoutAndDraw(int w, int h)
 void Application::layoutAndDrawSW()
 {
   int fbWidth = 0, fbHeight = 0;
-  SDL_GL_GetDrawableSize(sdlWindow, &fbWidth, &fbHeight);
+  SDL_GetWindowSizeInPixels(sdlWindow, &fbWidth, &fbHeight);
   if(fbWidth <= 0 || fbHeight <= 0)
     return;
   bool sizeChanged = swFB && (fbWidth != swBlitter->width || fbHeight != swBlitter->height);
@@ -563,7 +608,11 @@ void Application::layoutAndDrawSW()
   }
   int fbWidth = sdlSurface->w;
   int fbHeight = sdlSurface->h;
-  SDL_PixelFormat* fmt = sdlSurface->format;
+  const SDL_PixelFormatDetails* fmt = SDL_GetPixelFormatDetails(sdlSurface->format);
+  if(!fmt) {
+    PLATFORM_LOG("SDL_GetPixelFormatDetails failed: %s\n", SDL_GetError());
+    return;
+  }
   nvgswSetFramebuffer(painter->vg, sdlSurface->pixels, fbWidth, fbHeight, fmt->Rshift, fmt->Gshift, fmt->Bshift, 24);
   //SDL_FillRect(sdlSurface, NULL, SDL_MapRGB(sdlSurface->format, 255, 255, 255));
 
@@ -589,7 +638,7 @@ void Application::layoutAndDrawSW()
 void Application::layoutAndDrawGL()
 {
   int fbWidth = 0, fbHeight = 0;
-  SDL_GL_GetDrawableSize(sdlWindow, &fbWidth, &fbHeight);
+  SDL_GetWindowSizeInPixels(sdlWindow, &fbWidth, &fbHeight);
 
   Rect oldDeviceRect = painter->deviceRect;
   Rect dirty = tracedGuiLayoutAndDraw(fbWidth, fbHeight);
